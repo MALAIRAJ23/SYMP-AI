@@ -1,0 +1,34 @@
+{
+  "name": "server",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node start-servers.js",
+    "start-all": "node start-servers.js",
+    "proxy": "node hfProxy.js",
+    "bert": "node bertMedicalAnalysis.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "description": "",
+  "dependencies": {
+    "@chakra-ui/react": "^3.21.1",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@huggingface/inference": "^4.3.1",
+    "cors": "^2.8.5",
+    "dotenv": "^17.0.1",
+    "express": "^5.1.0",
+    "firebase": "^11.10.0",
+    "firebase-admin": "^13.4.0",
+    "framer-motion": "^12.22.0",
+    "fs": "^0.0.1-security",
+    "mic": "^2.1.2",
+    "node-fetch": "^3.3.2",
+    "querystring": "^0.2.1",
+    "ws": "^8.18.3"
+  }
+}
