@@ -1,0 +1,25 @@
+{
+  "short_name": "SympAI",
+  "name": "SympAI - AI-Powered Symptom Checker",
+  "icons": [
+    {
+      "src": "logo.jpg",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/jpeg"
+    },
+    {
+      "src": "logo.jpg",
+      "type": "image/jpeg",
+      "sizes": "192x192"
+    },
+    {
+      "src": "logo.jpg",
+      "type": "image/jpeg",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#2db7b9",
+  "background_color": "#e6fffa"
+}
