@@ -13,7 +13,7 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
 
 app.use(cors(allowedOrigins.length ? { origin: allowedOrigins } : {}));
 
-const HF_API_TOKEN = "REMOVED";
+const HF_API_TOKEN = process.env.HUGGINGFACE_API_KEY || '';
 
 // For medical symptom analysis, we'll use a text classification approach
 // You can replace this with a specific medical model when available
@@ -22,46 +22,82 @@ const MODEL_PATH = "microsoft/DialoGPT-medium"; // Placeholder - replace with me
 const openRouterProxy = require('./openRouterProxy');
 app.use(openRouterProxy);
 
+const buildFallbackAnalysis = (symptoms, reason = 'AI service unavailable') => {
+  const lower = symptoms.toLowerCase();
+  const hints = [];
+
+  if (lower.includes('fever')) hints.push('Possible infection-related symptoms.');
+  if (lower.includes('cough') || lower.includes('throat')) hints.push('Respiratory irritation may be present.');
+  if (lower.includes('headache')) hints.push('Could be tension, dehydration, or viral illness related.');
+  if (lower.includes('chest pain') || lower.includes('breath')) hints.push('Urgent evaluation may be needed if severe.');
+
+  const summary = hints.length
+    ? hints.join(' ')
+    : 'General symptoms detected. A clinician can provide a reliable diagnosis.';
+
+  return {
+    symptoms,
+    analysis: `${summary} (${reason})`,
+    confidence: 0.45,
+    recommendations: [
+      'Please consult with a healthcare professional for accurate diagnosis',
+      'Seek urgent care immediately for severe chest pain, breathing difficulty, or confusion',
+      'Monitor symptoms and hydration, and rest adequately'
+    ],
+    source: 'fallback',
+    timestamp: new Date().toISOString()
+  };
+};
+
 const runSymptomAnalysis = async (symptoms) => {
+  if (!HF_API_TOKEN) {
+    return buildFallbackAnalysis(symptoms, 'Missing HUGGINGFACE_API_KEY');
+  }
+
   // Format the symptoms for analysis
   const formattedSymptoms = `Patient symptoms: ${symptoms}. Please analyze these symptoms and provide potential conditions.`;
 
-  const response = await fetch(
-    `https://api-inference.huggingface.co/models/${encodeURIComponent(MODEL_PATH)}`,
-    {
-      headers: {
-        Authorization: `Bearer ${HF_API_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      method: "POST",
-      body: JSON.stringify({
-        inputs: formattedSymptoms,
-        parameters: {
-          max_length: 200,
-          temperature: 0.7,
-          do_sample: true
-        }
-      }),
+  try {
+    const response = await fetch(
+      `https://api-inference.huggingface.co/models/${encodeURIComponent(MODEL_PATH)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${HF_API_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+        body: JSON.stringify({
+          inputs: formattedSymptoms,
+          parameters: {
+            max_length: 200,
+            temperature: 0.7,
+            do_sample: true
+          }
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      return buildFallbackAnalysis(symptoms, `HuggingFace API ${response.status}`);
     }
-  );
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`HuggingFace API error: ${response.status} - ${errorText}`);
+    const result = await response.json();
+    return {
+      symptoms,
+      analysis: result[0]?.generated_text || result.generated_text || 'Analysis not available',
+      confidence: 0.85,
+      recommendations: [
+        'Please consult with a healthcare professional for accurate diagnosis',
+        'This analysis is for informational purposes only',
+        'Monitor your symptoms and seek medical attention if they worsen'
+      ],
+      source: 'huggingface',
+      timestamp: new Date().toISOString()
+    };
+  } catch (error) {
+    return buildFallbackAnalysis(symptoms, 'Network/API request failed');
   }
-
-  const result = await response.json();
-  return {
-    symptoms,
-    analysis: result[0]?.generated_text || result.generated_text || 'Analysis not available',
-    confidence: 0.85,
-    recommendations: [
-      'Please consult with a healthcare professional for accurate diagnosis',
-      'This analysis is for informational purposes only',
-      'Monitor your symptoms and seek medical attention if they worsen'
-    ],
-    timestamp: new Date().toISOString()
-  };
 };
 
 app.post('/predict', async (req, res) => {
