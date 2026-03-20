@@ -469,6 +469,13 @@ export default function SymptomInputFeaturePage() {
     );
   }
 
+  const displayedSymptoms = detected.length > 0
+    ? detected
+    : (prediction?.extractedSymptoms || []);
+
+  const hasAnyAnalysis = displayedSymptoms.length > 0 ||
+    (prediction?.potentialConditions && prediction.potentialConditions.length > 0);
+
   return (
     <Box minH="100vh" w="100vw" position="relative" bgGradient="linear(to-br, #e0f7fa 0%, #f8ffff 100%)" overflow="hidden" display="flex" alignItems="center" justifyContent="center" px={2}>
       {/* Back Button */}
@@ -679,11 +686,11 @@ export default function SymptomInputFeaturePage() {
                 <Text color="blue.600" fontSize="sm">{prediction.aiAnalysis}</Text>
               </Box>
             )}
-            {detected.length > 0 ? (
+            {hasAnyAnalysis ? (
               <>
                 <Text fontSize="md" color="teal.700" mb={1} fontWeight={600}>Detected symptoms:</Text>
                 <Wrap mb={3} justify="center">
-              {detected.map((sym, i) => (
+              {displayedSymptoms.map((sym, i) => (
                     <WrapItem key={i}><Tag colorScheme="teal" fontWeight={600} fontSize="md">{sym}</Tag></WrapItem>
                   ))}
                 </Wrap>

@@ -19,11 +19,53 @@ const HF_API_TOKEN = process.env.HUGGINGFACE_API_KEY || '';
 // You can replace this with a specific medical model when available
 const MODEL_PATH = "microsoft/DialoGPT-medium"; // Placeholder - replace with medical model
 
+const MEDICAL_SYMPTOMS = [
+  'fever', 'headache', 'cough', 'fatigue', 'nausea', 'vomiting', 'diarrhea',
+  'chest pain', 'shortness of breath', 'dizziness', 'joint pain', 'muscle pain',
+  'abdominal pain', 'back pain', 'sore throat', 'runny nose', 'congestion',
+  'loss of appetite', 'weight loss', 'insomnia', 'anxiety', 'depression'
+];
+
+const MEDICAL_CONDITIONS = {
+  'common_cold': ['runny nose', 'congestion', 'sore throat', 'cough', 'fatigue'],
+  'flu': ['fever', 'headache', 'muscle pain', 'fatigue', 'cough', 'sore throat'],
+  'migraine': ['headache', 'nausea', 'dizziness'],
+  'anxiety': ['anxiety', 'insomnia', 'fatigue', 'dizziness', 'shortness of breath'],
+  'depression': ['depression', 'fatigue', 'insomnia', 'loss of appetite', 'weight loss'],
+  'gastroenteritis': ['nausea', 'vomiting', 'diarrhea', 'abdominal pain', 'fever'],
+  'hypertension': ['headache', 'dizziness', 'chest pain', 'shortness of breath']
+};
+
+const extractSymptoms = (text) => {
+  const lower = (text || '').toLowerCase();
+  return MEDICAL_SYMPTOMS.filter((symptom) => lower.includes(symptom));
+};
+
+const getPotentialConditions = (extractedSymptoms) => {
+  const scores = Object.entries(MEDICAL_CONDITIONS)
+    .map(([condition, symptoms]) => {
+      const hits = extractedSymptoms.filter((s) => symptoms.includes(s)).length;
+      if (!hits) return null;
+      return {
+        condition: condition.replace(/_/g, ' '),
+        confidence: Math.round((hits / symptoms.length) * 100),
+        symptoms
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.confidence - a.confidence)
+    .slice(0, 3);
+
+  return scores;
+};
+
 const openRouterProxy = require('./openRouterProxy');
 app.use(openRouterProxy);
 
 const buildFallbackAnalysis = (symptoms, reason = 'AI service unavailable') => {
   const lower = symptoms.toLowerCase();
+  const extractedSymptoms = extractSymptoms(symptoms);
+  const potentialConditions = getPotentialConditions(extractedSymptoms);
   const hints = [];
 
   if (lower.includes('fever')) hints.push('Possible infection-related symptoms.');
@@ -37,7 +79,9 @@ const buildFallbackAnalysis = (symptoms, reason = 'AI service unavailable') => {
 
   return {
     symptoms,
-    analysis: `${summary} (${reason})`,
+    extractedSymptoms,
+    potentialConditions,
+    aiAnalysis: `${summary} (${reason})`,
     confidence: 0.45,
     recommendations: [
       'Please consult with a healthcare professional for accurate diagnosis',
@@ -83,9 +127,14 @@ const runSymptomAnalysis = async (symptoms) => {
     }
 
     const result = await response.json();
+    const extractedSymptoms = extractSymptoms(symptoms);
+    const potentialConditions = getPotentialConditions(extractedSymptoms);
+
     return {
       symptoms,
-      analysis: result[0]?.generated_text || result.generated_text || 'Analysis not available',
+      extractedSymptoms,
+      potentialConditions,
+      aiAnalysis: result[0]?.generated_text || result.generated_text || 'Analysis not available',
       confidence: 0.85,
       recommendations: [
         'Please consult with a healthcare professional for accurate diagnosis',
