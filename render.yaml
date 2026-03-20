@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: sympai-chat-api
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: node hfProxy.js
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: ALLOWED_ORIGINS
+        value: https://sympai-frontend.onrender.com
+      - key: COHERE_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+
+  - type: web
+    name: sympai-medical-api
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: node medicalAnalysis.js
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: ALLOWED_ORIGINS
+        value: https://sympai-frontend.onrender.com
+      - key: COHERE_API_KEY
+        sync: false
+
+  - type: web
+    name: sympai-frontend
+    runtime: static
+    rootDir: client
+    buildCommand: npm install && npm run build
+    staticPublishPath: build
+    envVars:
+      - key: REACT_APP_CHAT_API_URL
+        value: https://sympai-chat-api.onrender.com
+      - key: REACT_APP_MEDICAL_API_URL
+        value: https://sympai-medical-api.onrender.com
