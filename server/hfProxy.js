@@ -5,7 +5,13 @@ const { spawn } = require('child_process');
 
 const app = express();
 app.use(express.json());
-app.use(cors()); // Allow requests from your frontend
+
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+app.use(cors(allowedOrigins.length ? { origin: allowedOrigins } : {}));
 
 const HF_API_TOKEN = "REMOVED";
 
@@ -101,11 +107,19 @@ app.post('/chatbot', (req, res) => {
 });
 
 // Health check endpoint
+app.get('/', (req, res) => {
+  res.json({
+    service: 'SympAI Chat API',
+    status: 'running',
+    endpoints: ['/health', '/predict', '/chatbot']
+  });
+});
+
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-const PORT = 5001;
+const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
   console.log(`Medical symptom analysis server running on port ${PORT}`);
   console.log(`Health check available at: http://localhost:${PORT}/health`);
